@@ -1,0 +1,432 @@
+
+<style>
+body { margin: 0; }
+#tooltip {
+  position: absolute;
+  background: var(--surface-2);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  pointer-events: none;
+  display: none;
+  z-index: 10;
+  max-width: 220px;
+  line-height: 1.5;
+}
+#controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 12px 0 4px;
+  font-size: 13px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  border: 0.5px solid transparent;
+  transition: border-color 0.15s;
+  color: var(--text-primary);
+}
+.legend-item:hover { border-color: var(--border-strong); }
+.legend-item.muted { opacity: 0.3; }
+.legend-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+}
+#waveCanvas { display: block; width: 100%; cursor: crosshair; }
+#subtitle {
+  font-size: 12px; color: var(--text-secondary);
+  text-align: center; padding: 4px 0 8px;
+}
+</style>
+
+<h2 class="sr-only">Distribuição circular dos naipes de O Eterno Aprendiz — ondas seno por naipe ao longo dos 61 capítulos (60 numerados + Apêndice) e 10 partes</h2>
+
+<div id="controls">
+  <span style="color:var(--text-secondary);font-size:12px;margin-right:4px;">Naipes:</span>
+  <div class="legend-item" data-naipe="heart" onclick="toggle('heart')">
+    <div class="legend-dot" style="background:#e05a7a;"></div> ♥ Coração
+  </div>
+  <div class="legend-item" data-naipe="club" onclick="toggle('club')">
+    <div class="legend-dot" style="background:#3a8fd4;"></div> ♣ Paus
+  </div>
+  <div class="legend-item" data-naipe="diamond" onclick="toggle('diamond')">
+    <div class="legend-dot" style="background:#f0a030;"></div> ♦ Ouros
+  </div>
+  <div class="legend-item" data-naipe="spade" onclick="toggle('spade')">
+    <div class="legend-dot" style="background:#4dbe8a;"></div> ♠ Espadas
+  </div>
+</div>
+
+<canvas id="waveCanvas"></canvas>
+<div id="subtitle">clique num capítulo para ver detalhes</div>
+<div id="tooltip"></div>
+
+<script>
+const NAIPE_DATA = {
+  parts: [
+    {idx:0, title:"O Despertar"},
+    {idx:1, title:"A Jornada"},
+    {idx:2, title:"A Transformação"},
+    {idx:3, title:"O Legado"},
+    {idx:4, title:"A Maestria"},
+    {idx:5, title:"A Ruptura"},
+    {idx:6, title:"A Confluência"},
+    {idx:7, title:"A Transcendência"},
+    {idx:8, title:"A Sabedoria das Origens"},
+    {idx:9, title:"Apêndice: A Biblioteca do Interior"}
+  ],
+  chapters: [
+    {ch_idx:0,part_idx:0,verse_count:30,naipe_counts:{spade:7,club:7,heart:9,diamond:7}},
+    {ch_idx:1,part_idx:0,verse_count:20,naipe_counts:{spade:1,club:6,heart:9,diamond:4}},
+    {ch_idx:2,part_idx:0,verse_count:31,naipe_counts:{spade:5,club:10,heart:14,diamond:2}},
+    {ch_idx:3,part_idx:0,verse_count:20,naipe_counts:{spade:6,club:4,heart:7,diamond:3}},
+    {ch_idx:4,part_idx:0,verse_count:16,naipe_counts:{spade:1,club:4,heart:5,diamond:6}},
+    {ch_idx:5,part_idx:1,verse_count:50,naipe_counts:{spade:24,club:19,heart:3,diamond:4}},
+    {ch_idx:6,part_idx:1,verse_count:29,naipe_counts:{spade:10,club:5,heart:9,diamond:5}},
+    {ch_idx:7,part_idx:1,verse_count:23,naipe_counts:{spade:4,club:8,heart:6,diamond:5}},
+    {ch_idx:8,part_idx:1,verse_count:32,naipe_counts:{spade:11,club:4,heart:12,diamond:5}},
+    {ch_idx:9,part_idx:1,verse_count:18,naipe_counts:{spade:4,club:5,heart:6,diamond:3}},
+    {ch_idx:10,part_idx:1,verse_count:36,naipe_counts:{spade:1,club:2,heart:28,diamond:5}},
+    {ch_idx:11,part_idx:2,verse_count:15,naipe_counts:{spade:3,club:1,heart:9,diamond:2}},
+    {ch_idx:12,part_idx:2,verse_count:25,naipe_counts:{spade:14,club:1,heart:5,diamond:5}},
+    {ch_idx:13,part_idx:2,verse_count:22,naipe_counts:{spade:3,club:6,heart:9,diamond:4}},
+    {ch_idx:14,part_idx:2,verse_count:22,naipe_counts:{spade:4,club:7,heart:8,diamond:3}},
+    {ch_idx:15,part_idx:2,verse_count:23,naipe_counts:{spade:5,club:11,heart:6,diamond:1}},
+    {ch_idx:16,part_idx:3,verse_count:18,naipe_counts:{spade:3,club:12,heart:2,diamond:1}},
+    {ch_idx:17,part_idx:3,verse_count:15,naipe_counts:{spade:1,club:5,heart:4,diamond:5}},
+    {ch_idx:18,part_idx:3,verse_count:7,naipe_counts:{spade:1,club:2,heart:3,diamond:1}},
+    {ch_idx:19,part_idx:3,verse_count:11,naipe_counts:{spade:6,club:1,heart:2,diamond:2}},
+    {ch_idx:20,part_idx:3,verse_count:13,naipe_counts:{spade:1,club:2,heart:7,diamond:3}},
+    {ch_idx:21,part_idx:3,verse_count:13,naipe_counts:{spade:1,club:5,heart:4,diamond:3}},
+    {ch_idx:22,part_idx:3,verse_count:14,naipe_counts:{spade:2,club:3,heart:5,diamond:4}},
+    {ch_idx:23,part_idx:3,verse_count:12,naipe_counts:{spade:1,club:5,heart:2,diamond:4}},
+    {ch_idx:24,part_idx:4,verse_count:15,naipe_counts:{spade:2,club:6,heart:6,diamond:1}},
+    {ch_idx:25,part_idx:4,verse_count:11,naipe_counts:{spade:4,club:1,heart:5,diamond:1}},
+    {ch_idx:26,part_idx:4,verse_count:29,naipe_counts:{spade:9,club:7,heart:11,diamond:2}},
+    {ch_idx:27,part_idx:4,verse_count:13,naipe_counts:{spade:1,club:3,heart:7,diamond:2}},
+    {ch_idx:28,part_idx:4,verse_count:16,naipe_counts:{spade:1,club:7,heart:4,diamond:4}},
+    {ch_idx:29,part_idx:4,verse_count:21,naipe_counts:{spade:0,club:5,heart:8,diamond:8}},
+    {ch_idx:30,part_idx:4,verse_count:15,naipe_counts:{spade:2,club:4,heart:6,diamond:3}},
+    {ch_idx:31,part_idx:4,verse_count:20,naipe_counts:{spade:4,club:4,heart:7,diamond:5}},
+    {ch_idx:32,part_idx:4,verse_count:31,naipe_counts:{spade:2,club:5,heart:7,diamond:17}},
+    {ch_idx:33,part_idx:4,verse_count:17,naipe_counts:{spade:5,club:3,heart:5,diamond:4}},
+    {ch_idx:34,part_idx:5,verse_count:8,naipe_counts:{spade:5,club:1,heart:1,diamond:1}},
+    {ch_idx:35,part_idx:5,verse_count:7,naipe_counts:{spade:1,club:2,heart:3,diamond:1}},
+    {ch_idx:36,part_idx:5,verse_count:9,naipe_counts:{spade:3,club:1,heart:4,diamond:1}},
+    {ch_idx:37,part_idx:5,verse_count:7,naipe_counts:{spade:1,club:1,heart:2,diamond:3}},
+    {ch_idx:38,part_idx:5,verse_count:26,naipe_counts:{spade:8,club:2,heart:9,diamond:7}},
+    {ch_idx:39,part_idx:6,verse_count:5,naipe_counts:{spade:2,club:1,heart:1,diamond:1}},
+    {ch_idx:40,part_idx:6,verse_count:3,naipe_counts:{spade:1,club:1,heart:0,diamond:1}},
+    {ch_idx:41,part_idx:6,verse_count:5,naipe_counts:{spade:1,club:1,heart:2,diamond:1}},
+    {ch_idx:42,part_idx:6,verse_count:3,naipe_counts:{spade:1,club:0,heart:1,diamond:1}},
+    {ch_idx:43,part_idx:6,verse_count:20,naipe_counts:{spade:4,club:2,heart:7,diamond:7}},
+    {ch_idx:44,part_idx:6,verse_count:4,naipe_counts:{spade:1,club:1,heart:1,diamond:1}},
+    {ch_idx:45,part_idx:7,verse_count:6,naipe_counts:{spade:3,club:1,heart:1,diamond:1}},
+    {ch_idx:46,part_idx:7,verse_count:8,naipe_counts:{spade:1,club:2,heart:1,diamond:4}},
+    {ch_idx:47,part_idx:7,verse_count:3,naipe_counts:{spade:1,club:1,heart:0,diamond:1}},
+    {ch_idx:48,part_idx:7,verse_count:5,naipe_counts:{spade:1,club:1,heart:2,diamond:1}},
+    {ch_idx:49,part_idx:7,verse_count:26,naipe_counts:{spade:1,club:8,heart:9,diamond:8}},
+    {ch_idx:50,part_idx:7,verse_count:4,naipe_counts:{spade:1,club:1,heart:1,diamond:1}},
+    {ch_idx:51,part_idx:8,verse_count:10,naipe_counts:{spade:1,club:3,heart:5,diamond:1}},
+    {ch_idx:52,part_idx:8,verse_count:9,naipe_counts:{spade:1,club:2,heart:5,diamond:1}},
+    {ch_idx:53,part_idx:8,verse_count:9,naipe_counts:{spade:1,club:1,heart:6,diamond:1}},
+    {ch_idx:54,part_idx:8,verse_count:9,naipe_counts:{spade:2,club:0,heart:4,diamond:3}},
+    {ch_idx:55,part_idx:8,verse_count:12,naipe_counts:{spade:1,club:1,heart:9,diamond:1}},
+    {ch_idx:56,part_idx:8,verse_count:9,naipe_counts:{spade:2,club:1,heart:4,diamond:2}},
+    {ch_idx:57,part_idx:8,verse_count:12,naipe_counts:{spade:4,club:3,heart:4,diamond:1}},
+    {ch_idx:58,part_idx:8,verse_count:11,naipe_counts:{spade:0,club:1,heart:6,diamond:4}},
+    {ch_idx:59,part_idx:8,verse_count:55,naipe_counts:{spade:4,club:12,heart:26,diamond:13}},
+    {ch_idx:60,part_idx:9,verse_count:8,naipe_counts:{spade:1,club:1,heart:5,diamond:1}}
+  ]
+};
+
+const NAIPES = [
+  { key: 'heart',   sym: '♥', label: 'Coração', color: '#e05a7a' },
+  { key: 'club',    sym: '♣', label: 'Paus',    color: '#3a8fd4' },
+  { key: 'diamond', sym: '♦', label: 'Ouros',   color: '#f0a030' },
+  { key: 'spade',   sym: '♠', label: 'Espadas', color: '#4dbe8a' }
+];
+
+const visibility = { heart: true, club: true, diamond: true, spade: true };
+
+function toggle(naipe) {
+  visibility[naipe] = !visibility[naipe];
+  const el = document.querySelector(`[data-naipe="${naipe}"]`);
+  el.classList.toggle('muted', !visibility[naipe]);
+  draw();
+}
+
+const canvas = document.getElementById('waveCanvas');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+
+const SIZE = 680;
+canvas.width = SIZE * 2;
+canvas.height = SIZE * 2;
+canvas.style.height = SIZE + 'px';
+ctx.scale(2, 2);
+
+const CX = SIZE / 2, CY = SIZE / 2;
+const BASE_R = 210;
+const WAVE_SCALE = 60;
+const INNER_R = 28;
+
+const chapters = NAIPE_DATA.chapters;
+const parts = NAIPE_DATA.parts;
+const N = chapters.length;
+
+const maxVerse = Math.max(...chapters.map(c => c.verse_count));
+
+function getAngle(idx) {
+  return (idx / N) * 2 * Math.PI - Math.PI / 2;
+}
+
+function getMidAngle(partIdx) {
+  const chs = chapters.filter(c => c.part_idx === partIdx);
+  if (!chs.length) return 0;
+  const first = chs[0].ch_idx;
+  const last = chs[chs.length - 1].ch_idx;
+  return (getAngle(first) + getAngle(last + 1)) / 2;
+}
+
+function chapterPoint(chIdx, naipeKey) {
+  const ch = chapters[chIdx];
+  const angle = getAngle(chIdx);
+  const frac = ch.verse_count > 0 ? ch.naipe_counts[naipeKey] / ch.verse_count : 0;
+  const r = BASE_R + frac * WAVE_SCALE;
+  return { x: CX + r * Math.cos(angle), y: CY + r * Math.sin(angle), r, angle, frac };
+}
+
+function draw() {
+  ctx.clearRect(0, 0, SIZE, SIZE);
+
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const gridColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+  const textColor = isDark ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.65)';
+  const textSec = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
+  const partBand = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.025)';
+
+  // Concentric guide rings
+  [0.25, 0.5, 0.75, 1.0].forEach(frac => {
+    ctx.beginPath();
+    ctx.arc(CX, CY, BASE_R + frac * WAVE_SCALE, 0, 2 * Math.PI);
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  });
+
+  // Base ring
+  ctx.beginPath();
+  ctx.arc(CX, CY, BASE_R, 0, 2 * Math.PI);
+  ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Inner circle
+  ctx.beginPath();
+  ctx.arc(CX, CY, INNER_R, 0, 2 * Math.PI);
+  ctx.fillStyle = isDark ? '#1a1a19' : '#f8f7f5';
+  ctx.fill();
+  ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  // Part bands (alternating tinted arcs)
+  parts.forEach((part, pi) => {
+    const chs = chapters.filter(c => c.part_idx === pi);
+    if (!chs.length) return;
+    const a1 = getAngle(chs[0].ch_idx);
+    const a2 = getAngle(chs[chs.length - 1].ch_idx + 1);
+    ctx.beginPath();
+    ctx.moveTo(CX + INNER_R * Math.cos(a1), CY + INNER_R * Math.sin(a1));
+    ctx.arc(CX, CY, INNER_R, a1, a2);
+    ctx.arc(CX, CY, BASE_R + WAVE_SCALE + 16, a2, a1, true);
+    ctx.closePath();
+    ctx.fillStyle = pi % 2 === 0 ? partBand : 'transparent';
+    ctx.fill();
+  });
+
+  // Radial chapter dividers
+  chapters.forEach((ch, ci) => {
+    const angle = getAngle(ci);
+    const r1 = ci % 5 === 0 ? INNER_R + 6 : BASE_R - 14;
+    ctx.beginPath();
+    ctx.moveTo(CX + r1 * Math.cos(angle), CY + r1 * Math.sin(angle));
+    ctx.lineTo(CX + (BASE_R - 2) * Math.cos(angle), CY + (BASE_R - 2) * Math.sin(angle));
+    ctx.strokeStyle = ci % 5 === 0
+      ? (isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
+      : gridColor;
+    ctx.lineWidth = ci % 5 === 0 ? 1 : 0.5;
+    ctx.stroke();
+  });
+
+  // Naipe sine waves (filled area + line)
+  NAIPES.forEach(naipe => {
+    if (!visibility[naipe.key]) return;
+
+    const pts = chapters.map((_, ci) => chapterPoint(ci, naipe.key));
+
+    // Fill area between base ring and wave
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else {
+        const prev = pts[i - 1];
+        const mx = (prev.x + p.x) / 2, my = (prev.y + p.y) / 2;
+        ctx.quadraticCurveTo(prev.x, prev.y, mx, my);
+      }
+    });
+    // Close along base ring backwards
+    for (let i = pts.length - 1; i >= 0; i--) {
+      const angle = getAngle(i);
+      const bx = CX + BASE_R * Math.cos(angle), by = CY + BASE_R * Math.sin(angle);
+      if (i === pts.length - 1) ctx.lineTo(bx, by);
+      else ctx.lineTo(bx, by);
+    }
+    ctx.closePath();
+    ctx.fillStyle = naipe.color + '22';
+    ctx.fill();
+
+    // Smooth wave line
+    ctx.beginPath();
+    pts.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else {
+        const prev = pts[i - 1];
+        const mx = (prev.x + p.x) / 2, my = (prev.y + p.y) / 2;
+        ctx.quadraticCurveTo(prev.x, prev.y, mx, my);
+      }
+    });
+    ctx.strokeStyle = naipe.color;
+    ctx.lineWidth = 1.8;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Dots at each chapter
+    pts.forEach((p, i) => {
+      const frac = chapters[i].naipe_counts[naipe.key] / (chapters[i].verse_count || 1);
+      if (frac < 0.01) return;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, frac > 0.4 ? 4 : 2.5, 0, 2 * Math.PI);
+      ctx.fillStyle = naipe.color;
+      ctx.fill();
+    });
+  });
+
+  // Part labels
+  parts.forEach((part, pi) => {
+    const midAngle = getMidAngle(pi);
+    const labelR = BASE_R + WAVE_SCALE + 30;
+    const lx = CX + labelR * Math.cos(midAngle);
+    const ly = CY + labelR * Math.sin(midAngle);
+
+    ctx.save();
+    ctx.translate(lx, ly);
+    let rot = midAngle + Math.PI / 2;
+    if (midAngle > Math.PI / 2 && midAngle < Math.PI * 1.5) rot += Math.PI;
+    ctx.rotate(rot);
+    ctx.font = '500 11px sans-serif';
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const shortTitle = part.title.replace('A ', '').replace('O ', '').replace('As ', '');
+    ctx.fillText(`P${pi + 1} ${shortTitle}`, 0, 0);
+    ctx.restore();
+  });
+
+  // Chapter numbers (tiny, near base ring)
+  chapters.forEach((ch, ci) => {
+    const angle = getAngle(ci) + (Math.PI / N);
+    const labelR = BASE_R - 22;
+    const lx = CX + labelR * Math.cos(angle);
+    const ly = CY + labelR * Math.sin(angle);
+
+    ctx.save();
+    ctx.translate(lx, ly);
+    let rot = angle + Math.PI / 2;
+    if (angle > Math.PI / 2 && angle < Math.PI * 1.5) rot += Math.PI;
+    ctx.rotate(rot);
+    ctx.font = '400 9px sans-serif';
+    ctx.fillStyle = textSec;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ci + 1, 0, 0);
+    ctx.restore();
+  });
+
+  // Center label
+  ctx.font = '500 11px sans-serif';
+  ctx.fillStyle = textColor;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('OEA', CX, CY - 7);
+  ctx.font = '400 9px sans-serif';
+  ctx.fillStyle = textSec;
+  ctx.fillText('61 cap.', CX, CY + 6);
+}
+
+// Interaction
+let hoveredCh = null;
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = SIZE / rect.width;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleX;
+
+  const dx = mx - CX, dy = my - CY;
+  const angle = Math.atan2(dy, dx);
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dist < INNER_R || dist > BASE_R + WAVE_SCALE + 20) {
+    tooltip.style.display = 'none';
+    hoveredCh = null;
+    return;
+  }
+
+  let normAngle = angle + Math.PI / 2;
+  if (normAngle < 0) normAngle += 2 * Math.PI;
+  const chIdx = Math.floor((normAngle / (2 * Math.PI)) * N) % N;
+  const ch = chapters[chIdx];
+
+  if (ch) {
+    hoveredCh = chIdx;
+    const part = parts[ch.part_idx];
+    const pct = (n) => Math.round(n / ch.verse_count * 100);
+    tooltip.innerHTML = `
+      <strong>Cap. ${chIdx + 1}</strong> · ${part.title}<br>
+      ${ch.verse_count} versículos<br>
+      <span style="color:#e05a7a">♥ ${ch.naipe_counts.heart} (${pct(ch.naipe_counts.heart)}%)</span>
+      <span style="color:#3a8fd4;margin-left:8px">♣ ${ch.naipe_counts.club} (${pct(ch.naipe_counts.club)}%)</span><br>
+      <span style="color:#f0a030">♦ ${ch.naipe_counts.diamond} (${pct(ch.naipe_counts.diamond)}%)</span>
+      <span style="color:#4dbe8a;margin-left:8px">♠ ${ch.naipe_counts.spade} (${pct(ch.naipe_counts.spade)}%)</span>
+    `;
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX - rect.left + 14) + 'px';
+    tooltip.style.top = (e.clientY - rect.top - 10) + 'px';
+  }
+});
+
+canvas.addEventListener('mouseleave', () => {
+  tooltip.style.display = 'none';
+});
+
+canvas.addEventListener('click', (e) => {
+  if (hoveredCh !== null) {
+    const ch = chapters[hoveredCh];
+    const part = parts[ch.part_idx];
+    sendPrompt(`Analise a distribuição dos naipes no capítulo ${hoveredCh + 1} (${ch.verse_count} versículos): ♥ ${ch.naipe_counts.heart}, ♣ ${ch.naipe_counts.club}, ♦ ${ch.naipe_counts.diamond}, ♠ ${ch.naipe_counts.spade}. Está equilibrado?`);
+  }
+});
+
+draw();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+</script>
